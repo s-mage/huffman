@@ -1,3 +1,7 @@
+#!/usr/bin/env ruby
+#coding: utf-8
+require 'optparse'
+
 class Node
     # binary tree representation
     attr_accessor :value, :left, :right
@@ -22,7 +26,7 @@ def hash_to_nodes(hash)
   nodes = []
   i = 0
   hash.each_pair do 
-    |key, value| nodes[i] = Node.new([key, value])
+    |key, value| nodes[i] = Node.new([key, value.to_i])
     i += 1
   end
   return nodes
@@ -45,7 +49,7 @@ def huffman(occlist)
     leaves = sort_nodes(occlist)
     deq = lambda { leaves.shift }
 
-    # create new node instead 2 shifted
+    # create a new node instead 2 shifted
     while leaves.length > 1
         l, r = deq.call, deq.call
         node = Node.new([l.value[0] + r.value[0], l.value[1] + r.value[1]], l, r)
@@ -81,17 +85,18 @@ def decode(ht, text)
   node = ht
   out = ""
    text.scan /./m do |sym|
-    if node.leaf? 
-      out += node.value[0]
-      node = ht
-    end
-
     case sym 
         when "0" 
           node = node.left
         when "1" 
           node = node.right
     end
+
+    if node.leaf? 
+      out += node.value[0]
+      node = ht
+    end
+
   end
     out
 end
@@ -105,18 +110,94 @@ def encode(text, code)
   encoded_string
 end
 
+def file_to_hash(filename)
+  Hash[*IO.binread(filename).split(' ')]
+end
 
-if $0 == __FILE__
+def hash_to_file(hash, filename)
+  str = ''
+  hash.map{|key, value| str << key.to_s << ' ' << value.to_s << ' '}
+  if filename == $stdout
+    filename.write(str)
+  else
+    IO.binwrite(filename, str)
+  end
+end
 
 text = <<TEXT
 Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Sed est nulla, suscipit vel, tempus sit amet, viverra sit amet, dui. Nunc ultrices, purus vulputate luctus sodales, mauris augue elementum diam, in ornare neque nisi pharetra lectus. In hac habitasse platea dictumst. Phasellus justo turpis, laoreet id, semper at, convallis a, nisi. Duis iaculis erat et mauris. Donec a arcu. Ut sed risus vel mi mollis vehicula. Aenean laoreet, lorem dapibus aliquam ultrices, ante velit vestibulum sem, vel molestie arcu elit sit amet nunc. Vivamus venenatis placerat dui. Mauris porttitor varius velit. 
 TEXT
 
+hash_out = $stdout
+text_out = $stdout
+encoded_text = ''
+
+text.tr!(" \n", "\u{1 2}")
+
 hash_occurrences = occurrences(text) #hash of all symbols and their occurrences
-ht = huffman(hash_occurrences) #huffman tree
-sym_array = hash_occurrences.keys #array of all symbols of the text
-code = hash_code(ht, sym_array) #hash or all symbols and their codes
-p encoded_text = encode(text, code) #encoded text
+
+opts = OptionParser.new do |opts|
+  opts.banner = "Usage: huffman.rb [options]"
+
+  opts.on("-t", "--text TEXT", String, "Run program with your text TEXT") do |txt|
+    text = txt
+    hash_occurrences = occurrences(text) #hash of all symbols and their occurrences
+  end
+
+  opts.on("-f", "--file FILE", "Run program with text in file FILE") do |file|
+    text = IO.read(file)
+    hash_occurrences = occurrences(text) #hash of all symbols and their occurrences
+  end
+
+  opts.on("--occff FILE", "Run program with hash of occurrences in FILE") do |file|
+    hash_occurrences = file_to_hash(file)
+  end
+
+  opts.on("-o", "--out_file FILE", "Choose output file") do |file|
+    text_out = File.open(file, mode="w+")
+  end
+
+  opts.on("-c", "--code_file FILE", "Choose file with encoding hash") do |file|
+    hash_out = File.open(file, mode="w+")
+  end
+
+  opts.on("-e", "--encode", "Only encode text") do 
+    hash_to_file(hash_occurrences, hash_out)
+    ht = huffman(hash_occurrences) #huffman tree
+    sym_array = hash_occurrences.keys #array of all symbols of the text
+    p code = hash_code(ht, sym_array) #hash or all symbols and their codes
+    encoded_text = encode(text, code) #encoded text
+    text_out.write(encoded_text)
+  end
+
+  opts.on("-d", "--decode [TEXT]", "Decode text") do |enc_text|
+    text = enc_text || encoded_text
+    ht = huffman(hash_occurrences)
+    puts
+    puts decoded_text = decode(ht, text).tr("\u{1 2}", " \n")  #decoded text
+  end
+
+  opts.on("--decodeff FILE", "Decode text from file") do |file|
+    et = IO.binread(file)
+    ht = huffman(hash_occurrences)
+    puts decoded_text = decode(ht, et).tr("\u{1 2}", " \n")  #decoded text
+  end
+
+  opts.on_tail("-h", "--help", "Show this message and exit") do
+    puts opts
+    exit
+  end
+
+end.parse!
+
+#hash_to_file(hash_occurrences, "15file")
+#hash_occurrences = file_to_hash("15file")
+#hash_out.write(hash_occurrences)
+#ht = huffman(hash_occurrences) #huffman tree
+#sym_array = hash_occurrences.keys #array of all symbols of the text
+#code = hash_code(ht, sym_array) #hash or all symbols and their codes
+#encoded_text = encode(text, code) #encoded text
+#text_out.write(encoded_text)
 
 
 orig = text.length
@@ -124,6 +205,5 @@ new = encoded_text.length / 8.0
 printf("original %s bytes, huffman encoded: %s bytes, ratio: %.2f%%", 
     orig, new, new/orig*100)
 puts
-
-p decoded_text = decode(ht, encoded_text) #decoded text
-end
+#
+#puts decoded_text = decode(ht, encoded_text).tr!("\u{1 2}", " \n")  #decoded text
