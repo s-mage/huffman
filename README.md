@@ -28,4 +28,4 @@ huffman.rb [options]
 
 Remember, that file huffman.rb must have rules to be executed. To give them, run
   
-  chmod +x huffman.rb
+    chmod +x huffman.rb
