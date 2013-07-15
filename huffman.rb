@@ -3,7 +3,7 @@
 require 'optparse'
 
 # Binary tree representation.  Node of binary tree consists of
-# value and links to two childs: left and right. It this imple-
+# value and links to two childs: left and right. In this imple-
 # mentation node is array [key, value], read about Huffman enco-
 # ding to understand, why it is necessary.
 #
@@ -57,9 +57,9 @@ def huffman(occlist)
   #
   occlist =  hash_to_nodes(occlist)
 
-  if occlist.empty? then
+  if occlist.empty?
     puts 'warning: no occurrences provided to build huffman tree'
-      return nil
+    return nil
   end
 
   # Create the initial queue with nodes, trees contain assoc lists.
@@ -159,7 +159,14 @@ def hash_to_file(hash, filename)
 end
 
 text = <<TEXT
-Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Sed est nulla, suscipit vel, tempus sit amet, viverra sit amet, dui. Nunc ultrices, purus vulputate luctus sodales, mauris augue elementum diam, in ornare neque nisi pharetra lectus. In hac habitasse platea dictumst. Phasellus justo turpis, laoreet id, semper at, convallis a, nisi. Duis iaculis erat et mauris. Donec a arcu. Ut sed risus vel mi mollis vehicula. Aenean laoreet, lorem dapibus aliquam ultrices, ante velit vestibulum sem, vel molestie arcu elit sit amet nunc. Vivamus venenatis placerat dui. Mauris porttitor varius velit.
+Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+Sed est nulla, suscipit vel, tempus sit amet, viverra sit amet, dui.
+Nunc ultrices, purus vulputate luctus sodales, mauris augue elementum diam,
+in ornare neque nisi pharetra lectus. In hac habitasse platea dictumst.
+Phasellus justo turpis, laoreet id, semper at, convallis a, nisi. Duis iaculis
+erat et mauris. Donec a arcu. Ut sed risus vel mi mollis vehicula. Aenean laoreet,
+lorem dapibus aliquam ultrices, ante velit vestibulum sem, vel molestie arcu elit
+sit amet nunc. Vivamus venenatis placerat dui. Mauris porttitor varius velit.
 TEXT
 
 hash_out = $stdout
@@ -170,7 +177,9 @@ encoded_text = ''
 #
 text.tr!(" \n", "\u{1 2}")
 
-hash_occurrences = occurrences(text) #hash of all symbols and their occurrences
+# Hash of all symbols and their occurrences.
+#
+hash_occurrences = occurrences(text)
 
 opts = OptionParser.new do |opts|
   messages = { banner: 'Usage: huffman.rb [options]',
