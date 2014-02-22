@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-#coding: utf-8
 require 'optparse'
 
 # Binary tree representation.  Node of binary tree consists of
@@ -18,33 +17,39 @@ class Node
   # node haven't childs.
   #
   def leaf?
-    return @left == nil && @right == nil
+    @left == nil && @right == nil
   end
+
+  def in_left_brunch?(sym)
+    left.symbols.include? sym
+  end
+
+  def in_right_brunch?(sym)
+    right.symbols.include? sym
+  end
+
+  def occurrences
+    value.occurrences
+  end
+
+  def symbols
+    value.symbols
+  end
+
+  Value = Struct.new(:symbols, :occurrences)
 end
 
 # Generate an descending ordered aray of nodes with
 # values [occurrences, character].
 #
 def occurrences(text)
-  occ = Hash.new(0)
-  text.scan (/./m) { |sym| occ[sym] += 1 }
-  occ
+  text.each_char.inject(Hash.new(0)) { |occ, x| occ[x] += 1; occ }
 end
 
 # Convert hash to array of nodes.
 #
-def hash_to_nodes(hash)
-  nodes = []
-  hash.each_pair do
-    |key, value| nodes << Node.new([key, value.to_i])
-  end
-  return nodes
-end
-
-# Sort array of nodes by key.
-#
-def sort_nodes(nodes)
-  nodes.sort_by{|node| node.value.last}
+def to_nodes(hash)
+  hash.inject([]) { |r, (k, v)| r << Node.new(Node::Value.new(k, v.to_i)) }
 end
 
 # Huffman encoding itself.
@@ -53,34 +58,29 @@ end
 # occurrences.
 #
 def huffman(occlist)
-  # Build a Huffman encoding binary tree from the occurence list.
-  #
-  occlist =  hash_to_nodes(occlist)
-
   if occlist.empty?
     puts 'warning: no occurrences provided to build huffman tree'
     return nil
   end
 
-  # Create the initial queue with nodes, trees contain assoc lists.
-  #
-  nodes = sort_nodes(occlist)
-  deq = lambda { nodes.shift }
+  # Create queue of nodes, more occurrences -- lower position.
+  nodes = to_nodes(occlist).sort_by(&:occurrences)
+  tree(nodes)
+end
 
-  # Create a new node from 2 shifted until the tree will not
-  # contain all nodes. The tree will be full when it will be
-  # alone is array of nodes.
-  #
+# Create a new node from 2 shifted until the tree will not
+# contain all nodes.
+#
+def tree(nodes)
   while nodes.length > 1
-    l, r = deq.call, deq.call
-    node = Node.new([l.value[0] + r.value[0], l.value[1] + r.value[1]], l, r)
-    nodes << node
-    nodes = sort_nodes(nodes)
+    l, r = nodes.shift, nodes.shift
+    new_symbols = l.symbols + r.symbols
+    new_occurrences = l.occurrences + r.occurrences
+    new_value = Node::Value.new(new_symbols, new_occurrences)
+    index = nodes.find_index { |x| x.occurrences > new_occurrences } || -1
+    nodes.insert(index, Node.new(new_value, l, r)) # support nodes order.
   end
-
-  # Return built tree.
-  #
-  deq.call
+  nodes.first
 end
 
 # Create a hash { symbol => code } from Huffman tree and array
@@ -88,19 +88,21 @@ end
 #
 def hash_code(huffman_tree, sym_array)
   sym_array.inject({}) do |result, sym|
-    node = huffman_tree
-    code = ''
-    while  !(node.leaf?)
-      if node.left.value[0].include?(sym)
-        node = node.left
-        code += '0'
-      elsif node.right.value[0].include?(sym)
-        node = node.right
-        code += '1'
-      end
-    end
-    result.merge(sym => code)
+    result.merge(sym => sym_code(huffman_tree, sym))
   end
+end
+
+def sym_code(huffman_tree, sym)
+  code = ''
+  node = huffman_tree.dup
+  while !node.leaf?
+    if node.in_left_brunch?(sym)
+      code << '0'; node = node.left
+    elsif node.in_right_brunch?(sym)
+      code << '1'; node = node.right
+    end
+  end
+  code
 end
 
 # Decode text to original appearance with Huffman tree.
@@ -109,22 +111,16 @@ end
 # @param text [String] encoded text.
 #
 def decode(ht, text)
-  node = ht
-  out = ''
-  text.scan /./m do |sym|
+  text.each_char.inject(['', ht]) do |(out, node), sym|
     case sym
-      when '0'
-        node = node.left
-      when '1'
-        node = node.right
+    when '0' then next_node = node.left
+    when '1' then next_node = node.right
+    else raise 'Invalid code format'
     end
-
-    if node.leaf?
-      out << node.value[0]
-      node = ht
-    end
+    next_node.leaf? ?
+      [out << next_node.value[0], ht] :
+      [out, next_node]
   end
-  out
 end
 
 # Encode text to Huffman code with existing code.
@@ -133,11 +129,7 @@ end
 # @param code [{ symbol => code }] hash of symbols and codes.
 #
 def encode(text, code)
-  encoded_string = ''
-  text.scan /./m do |sym|
-    encoded_string += code[sym]
-  end
-  encoded_string
+  text.each_char.inject('') { |r, x| r << code[x] }
 end
 
 # Read file with occurences and put it into hash.
@@ -149,8 +141,7 @@ end
 # Write hash with occurences to file.
 #
 def hash_to_file(hash, filename)
-  str = ''
-  hash.map { |key, value| str << key.to_s << ' ' << value.to_s << ' ' }
+  str = hash.inject('') { |r, (k, v)| r << "#{k.to_s} #{v.to_s} " }
   if filename == $stdout
     filename.write(str)
   else
