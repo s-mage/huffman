@@ -18,6 +18,6 @@ huffman.rb [options]
         --decodeff FILE              Decode text from file
     -h, --help                       Show this message and exit
 
-Remember, that file huffman.rb must have rules to be executed. To give them, run
+Remember, that file huffman.rb must have rights to be executed. To give them, run
   
     chmod +x huffman.rb
